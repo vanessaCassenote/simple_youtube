@@ -10,15 +10,12 @@ def send_to_kafka():
     pass
 
 def save_to_postgres(filename, url):
-    
     vid = Video(title = filename.split(".")[0],
                 url = url,
                 owner_id = 3)
-    
     db = Postgres()
     db.insert_video(Video=vid)
-    
-    
+
 def open_multi_upload_s3(filename):
     s3.create_multipart_upload(bucket="simple-youtube", object_name=filename)
 
@@ -61,16 +58,3 @@ def complete_multi_part_s3():
     #save_to_postgres(filename, public_url)
     
     # Send to kafka for transcoding
-    
-    
-    
-
-
-
-
-if __name__ == "__main__":
-    save_to_s3()
-    
-    
-    
-    

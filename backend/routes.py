@@ -5,7 +5,8 @@ import requests
 import os
 import base64
 from app import app, oauth, google
-from src.services.upload_services import open_multi_upload_s3, upload_parts_s3, complete_multi_part_s3
+from src.services.upload_services import open_multi_upload_s3, upload_parts_s3, complete_multi_part_s3, save_to_postgres
+from src.services.watch_services import get_all_videos
 
 order_upload = {}
 count = 0
@@ -20,43 +21,31 @@ def login_required(f):
 
 @app.route("/")
 def index():
-    
-    videos = {
-        "0":{
-            "title": "Title 1",
-            "thumbnail":"thumb",
-            "id":123
-        },
-        "1":{
-            "title": "Title 2",
-            "thumbnail":"thumb 2",
-            "id":124
-        }
-    }
-    return jsonify(videos) #"Hello <a href=/login><button>Login</button></a>"
+    return jsonify(get_all_videos())
 
 @app.route("/login")
 def login():      
-    # try:
-    #     redirect_uri = url_for("callback", _external=True)
-    #     response = google.authorize(callback=redirect_uri)
-    #     return response
-    # except Exception as e:
-    #     app.logger.error(f"Erro during login:{str(e)}")
-    #     return jsonify({"msg":"Error occurred during login", "status":500})
-
-    videos = {
-        "url":f"https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=869701619623-domqc7vkcm6ue7d1tnmbc5ovmmddo7vn.apps.googleusercontent.com&redirect_uri=http%3A%2F%2F127.0.0.1%3A5000%2Fcallback&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+openid&service=lso&o2v=1&ddm=0&flowName=GeneralOAuthFlow"
-    }
-    return jsonify(videos)
+    try:
+        redirect_uri = url_for("callback", _external=True)
+        response = google.authorize(callback=redirect_uri)
+        print("--------1------------",response.location)
+        print("--------2------------",response.headers)
+        print("--------3------------",response.get_json())
+        
+    except Exception as e:
+        app.logger.error(f"Erro during login:{str(e)}")
+        return jsonify({"msg":"Error occurred during login", "status":500})
+    
+    return jsonify({"response":response.location})
 
 @app.route("/callback")
 def callback():
+    print("olaaaa2024")
     response = google.authorized_response()
     if response is None or response.get('access_token') is None:
         return 'Login failed.'
     session['google_token'] = (response['access_token'], '')
-    return jsonify(session['google_token'])
+    return jsonify({"session":session['google_token']})
 
 @app.route("/upload", methods=['POST'])
 @login_required
@@ -83,7 +72,10 @@ def upload_end():
     for i in range(1, total_chunks+1):
         imgdata = order_upload[i]["chunk"]
         upload_parts_s3(chunk=imgdata, part_number=i)
-    complete_multi_part_s3()
+    
+    public_url = complete_multi_part_s3()
+    save_to_postgres(filename=order_upload[1]["filename"], url=public_url)
+    
     return jsonify({"status":200})
 
 @app.route("/logout", methods=["GET"])
