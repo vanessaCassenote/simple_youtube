@@ -1,0 +1,9 @@
+flask
+flask_cors
+boto3
+sqlalchemy
+
+requests
+Authlib
+Flask-OAuthlib
+Werkzeug==2.2.2

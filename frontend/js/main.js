@@ -32,13 +32,22 @@ function login(){
     addLogout()
 }
 
+//document.getElementById("inputGroupFile02").addEventListener('change', 
 
-document.getElementById("inputGroupFile02").addEventListener('change', 
-    async function(event){
+async function upload (){
+        const video_title = document.getElementById("video_title")
+        const screenshot = document.getElementById("screenshot").files[0]
+        const file = document.getElementById("inputGroupFile02").files[0]
         const chunksText = document.getElementById("video-information")
         const uploadBody = document.getElementById("uploading")
         const progressBar = document.createElement("div")
         const progressBarInner = document.createElement("div")
+
+        const chunkSize = 1024*1024*10; //10MB 
+        var numberOfChunks = Math.ceil(file.size/chunkSize);
+        const upload_id = file.name+numberOfChunks
+        var start=0; 
+        var chunkEnd = Math.min.apply(null,[start + chunkSize , file.size])
 
         progressBarInner.setAttribute("class", "progress-bar bg-success")
         progressBarInner.setAttribute("style", "width: 6.25%")
@@ -50,23 +59,32 @@ document.getElementById("inputGroupFile02").addEventListener('change',
         progressBar.setAttribute("aria-valuemax", "100")
         progressBar.appendChild(progressBarInner)
 
-        var file = event.target.files[0];
-        const chunkSize = 1024*1024*10; //10MB 
-
-        var numberOfChunks = Math.ceil(file.size/chunkSize);
-        const upload_id = file.name+numberOfChunks
-        const uploadPromises =[]
-        var start=0; 
-        var chunkEnd = Math.min.apply(null,[start + chunkSize , file.size])
-
         console.log("Start:")
-        
+
+        let title = video_title.value.toLowerCase().replaceAll(" ","_")
+        let ext = file.name.split(".")
+        ext = ext[ext.length-1]
+        let filename = title+"."+ext
+
+        console.log(file)
+
+        var uploadStart = await fetch("http://127.0.0.1:5000/upload_start", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                filename:filename
+            })
+        })
+            .then(response => response.json())
+            .then(jsonResponse=> console.log(jsonResponse))
+            .catch((err) => console.error(err));
+
         perc = parseFloat(Math.ceil(100/numberOfChunks));
         percWidth = perc
         chunksText.innerHTML = "There will be " + numberOfChunks + " chunks uploaded "
         uploadBody.appendChild(progressBar)
 
-        for (let i=1; i<=numberOfChunks;i++){
+        for (let i=1; i<=numberOfChunks; i++){
             const blobData = file.slice(start, start+chunkSize, contentType="video/mp4");
             start += chunkSize
 
@@ -79,16 +97,13 @@ document.getElementById("inputGroupFile02").addEventListener('change',
                   };
                 });
               };
-
             var res = await blobToBase64(blobData)
-
             let new_res = res.split(/,(.*)/s)[1]
 
             const requestOptions = {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body:JSON.stringify({
-                    filename:file.name,
                     chunk: new_res,
                     total_chunks:numberOfChunks,
                     chunk_index:i,
@@ -96,7 +111,7 @@ document.getElementById("inputGroupFile02").addEventListener('change',
                 })
             };
 
-            var response = fetch("http://127.0.0.1:5000/upload_parts", requestOptions)
+            var response = await fetch("http://127.0.0.1:5000/upload_parts", requestOptions)
                     .then(response => response.json())
                     .then(jsonResponse=> {
                         percWidth = Math.min.apply(null,[percWidth,100])
@@ -108,31 +123,41 @@ document.getElementById("inputGroupFile02").addEventListener('change',
                     .catch((err) => console.error(err));
             
             console.log("chunk: "+i)
-            uploadPromises.push(response)
+            //uploadPromises.push(response)
 
         }
-        var endUpload = fetch("http://127.0.0.1:5000/upload_end", 
+
+        const blobToBase64 = blob => {
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            return new Promise(resolve => {
+                reader.onloadend = () => {
+                resolve(reader.result);
+                };
+            });
+            };
+        var result = await blobToBase64(screenshot)
+        
+        let ext_img = screenshot.name.split(".")
+        ext_img = ext_img[ext_img.length-1]
+        let filename_img = title+"_screenshot."+ext_img
+
+        var endUpload = await fetch("http://127.0.0.1:5000/upload_end", 
         {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(
+                {   filename:filename_img,
+                    title:video_title.value,
+                    screenshot:result
+                })
         })
                 .then(response => response.json())
                 .then(jsonResponse=> console.log(jsonResponse))
                 .catch((err) => console.error(err));
             
-        console.log("End:")
-        uploadPromises.push(endUpload)
-
-        await Promise.all(uploadPromises)
-
-
-        let enterEvent = new KeyboardEvent("F5", {
-            code: 116
-        });
-          
-        inputElement.dispatchEvent(enterEvent);
-        
-});
+        console.log("End:")   
+};
 
 function addLogout(){
     let nav = document.getElementById("nav-form")
@@ -166,7 +191,7 @@ function addItem(title,thumbnail,id,url){
     
     novoItem.innerHTML = `<div class='child float-left-child'>
         <div class="card" style="width: 18rem;">
-            <img class="card-img-top" src="${thumbnail}" alt="Card image cap"> 
+            <img class="card-img-top" width="286" height="180" src="${thumbnail}" alt="Card image cap"> 
             <div class="card-body">
                 <a id="id_${id}" onclick="watchVideo('${url}')" href="#" class="btn btn-primary d-grid gap-2 justify-content-md-end">
                     <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor" class="bi bi-play-btn" viewBox="0 0 16 16">
@@ -185,9 +210,13 @@ function addVideos(jsonResponse){
 
     for (let resp in jsonResponse){
         let title = jsonResponse[resp]["title"]
-        let thumbnail = "download.svg" //jsonResponse[resp]["thumbnail"]
         let id = jsonResponse[resp]["id"]
         let url = jsonResponse[resp]["url"]
+
+        let thumbnail = jsonResponse[resp]["screenshot"];
+        if (jsonResponse[resp]["screenshot"] == null){
+            thumbnail = "download.svg" 
+        }
         
         addItem(title, thumbnail, id, url)
     }

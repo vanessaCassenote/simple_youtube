@@ -20,24 +20,33 @@
     <div>
         <!-- Modal -->
         <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
+          <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                <h1 class="modal-title fs-5" id="exampleModalLabel">Select video to upload</h1>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  <h1 class="modal-title fs-5" id="exampleModalLabel">Video upload</h1>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body" id="uploading">
-                    <div class="input-group mb-3">
-                        <input type="file" class="form-control" id="inputGroupFile02" onchange="(event)=>(event)">
-                    </div>
+                  <p class="fw-semibold">Enter the video title:</p>
+                  <div class="input-group mb-3">
+                    <input type="text" class="form-control" id="video_title" placeholder="Video title" aria-label="Username" aria-describedby="basic-addon1">
+                  </div>
+                  <p class="fw-semibold">Select the screenshot for video cover:</p>
+                  <div class="input-group mb-3">
+                    <input type="file" class="form-control" id="screenshot" accept=".jpg,.jpeg,.png">
+                  </div>
+                  <p class="fw-semibold">Select the video:</p>
+                  <div class="input-group mb-3">
+                      <input type="file" class="form-control" id="inputGroupFile02" accept=".mp4,.webm,.mkv,.avi,.wmv,.mov"> <!-- onchange="(event)=>(event)" -->
+                  </div>
                 </div>
                 <p class="text-center fw-normal" id="video-information"></p> 
-                <!--<div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="submit" class="btn btn-primary">Upload</button>
-                </div> -->
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                  <button type="submit" class="btn btn-primary" id="btn_upload" onclick="upload()" >Upload</button>
+                </div> 
             </div>
-            </div>
+          </div>
         </div>
     </div>
     <!-- Modal -->

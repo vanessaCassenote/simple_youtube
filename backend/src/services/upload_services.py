@@ -9,8 +9,9 @@ ETAGS = []
 def send_to_kafka():
     pass
 
-def save_to_postgres(filename, url):
-    vid = Video(title = filename.split(".")[0],
+def save_to_postgres(title, filename, screenshot, url):
+    vid = Video(title = title,
+                screenshot = screenshot,
                 url = url,
                 owner_id = 3)
     db = Postgres()

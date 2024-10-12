@@ -47,36 +47,42 @@ def callback():
     session['google_token'] = (response['access_token'], '')
     return jsonify({"session":session['google_token']})
 
-@app.route("/upload", methods=['POST'])
-@login_required
-def upload():
+# @app.route("/upload_parts", methods=['POST'])
+# def upload_parts():
+#     data = request.json
+#     imgdata = base64.b64decode(data["chunk"])
+#     print("-------------\n",data["chunk_index"] )
+#     if (data["chunk_index"] == 1):
+#         open_multi_upload_s3(filename=data["filename"])
+    
+#     upload_parts_s3(chunk=imgdata, part_number=data["chunk_index"])
+    
+#     if (data["chunk_index"] == data["total_chunks"]):
+        
+#         public_url = complete_multi_part_s3()
+#         save_to_postgres(filename=data["filename"], url=public_url)
+    
+#     return jsonify({"status":200})
+
+@app.route("/upload_start", methods=['POST'])
+def upload_start():
     data = request.json
-    print(data)
+    open_multi_upload_s3(filename=data["filename"])
+    return jsonify({"Upload Started":200})
 
 @app.route("/upload_parts", methods=['POST'])
 def upload_parts():
     data = request.json
     imgdata = base64.b64decode(data["chunk"])
-    order_upload[int(data["chunk_index"])] = {"chunk": imgdata,
-                                                "filename":data["filename"],
-                                                "total_chunks":data["total_chunks"],
-                                                "upload_id":data["upload_id"]
-                                              }
-    return jsonify({"status":200})
+    upload_parts_s3(chunk=imgdata, part_number=data["chunk_index"])
+    return jsonify({f"Upload {data["chunk_index"]}/{data["total_chunks"]}":200})
 
-@app.route("/upload_end", methods=['GET'])
+@app.route("/upload_end", methods=['POST'])
 def upload_end():
-    total_chunks = order_upload[1]["total_chunks"]
-    open_multi_upload_s3(filename=order_upload[1]["filename"])
-    
-    for i in range(1, total_chunks+1):
-        imgdata = order_upload[i]["chunk"]
-        upload_parts_s3(chunk=imgdata, part_number=i)
-    
+    data = request.json     
     public_url = complete_multi_part_s3()
-    save_to_postgres(filename=order_upload[1]["filename"], url=public_url)
-    
-    return jsonify({"status":200})
+    save_to_postgres(title=data["title"], filename=data["filename"], screenshot=data["screenshot"], url=public_url)
+    return jsonify({"Upload Ended":200})
 
 @app.route("/logout", methods=["GET"])
 def logout():
