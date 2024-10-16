@@ -1,39 +1,4 @@
 
-function addLogin(){
-    let nav = document.getElementById("nav-form")
-    let login_btn = document.createElement("button")
-    let logout_btn = document.getElementById("logout_btn")
-    let upload_btn = document.getElementById("upload_btn")
-
-    login_btn.className = "btn btn-outline-success me-2"
-    login_btn.type = "submit"
-    login_btn.textContent = "Login"
-    login_btn.id = "login_btn"
-    login_btn.setAttribute("onclick", "login()")
-
-    nav.removeChild(upload_btn)
-    nav.removeChild(logout_btn)
-    nav.appendChild(login_btn)
-}
-
-function login(){
-    // var endUpload = fetch("http://127.0.0.1:5000/login", 
-    //     {
-    //         method: 'GET',
-    //         headers: { 'Content-Type': 'application/json' }
-    //     })
-    //     .then(response => response.json())
-    //     .then(jsonResponse=> {
-    //         window.location.href = jsonResponse['response']
-    //         console.log(jsonResponse)
-    //     })
-    //     .catch((err) => console.error(err));
-    
-    addLogout()
-}
-
-//document.getElementById("inputGroupFile02").addEventListener('change', 
-
 async function upload (){
         const video_title = document.getElementById("video_title")
         const screenshot = document.getElementById("screenshot").files[0]
@@ -66,11 +31,12 @@ async function upload (){
         ext = ext[ext.length-1]
         let filename = title+"."+ext
 
-        console.log(file)
-
         var uploadStart = await fetch("http://127.0.0.1:5000/upload_start", {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer '+localStorage.getItem('access_token_cookie')
+            },
             body: JSON.stringify({ 
                 filename:filename
             })
@@ -102,7 +68,10 @@ async function upload (){
 
             const requestOptions = {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer '+localStorage.getItem('access_token_cookie')
+                },
                 body:JSON.stringify({
                     chunk: new_res,
                     total_chunks:numberOfChunks,
@@ -123,8 +92,6 @@ async function upload (){
                     .catch((err) => console.error(err));
             
             console.log("chunk: "+i)
-            //uploadPromises.push(response)
-
         }
 
         const blobToBase64 = blob => {
@@ -145,7 +112,10 @@ async function upload (){
         var endUpload = await fetch("http://127.0.0.1:5000/upload_end", 
         {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer '+localStorage.getItem('access_token_cookie')
+            },
             body: JSON.stringify(
                 {   filename:filename_img,
                     title:video_title.value,
@@ -158,31 +128,6 @@ async function upload (){
             
         console.log("End:")   
 };
-
-function addLogout(){
-    let nav = document.getElementById("nav-form")
-    let login_btn = document.getElementById("login_btn")
-    let logout_btn = document.createElement("button")
-    let upload_btn = document.createElement("button")
-
-    upload_btn.className = "btn btn-outline-success me-2"
-    upload_btn.type = "button"
-    upload_btn.textContent = "Upload"
-    upload_btn.id = "upload_btn"
-    upload_btn.setAttribute("data-bs-toggle", "modal")
-    upload_btn.setAttribute("data-bs-target", "#exampleModal")
-
-    logout_btn.className = "btn btn-outline-success"
-    logout_btn.type = "submit"
-    logout_btn.textContent = "Logout"
-    logout_btn.id = "logout_btn"
-    logout_btn.setAttribute("onclick", "addLogin()")
-
-    nav.removeChild(login_btn)
-    nav.appendChild(upload_btn)
-    nav.appendChild(logout_btn)
-}
-
 
 function addItem(title,thumbnail,id,url){
     
@@ -220,7 +165,6 @@ function addVideos(jsonResponse){
         
         addItem(title, thumbnail, id, url)
     }
-
 }
 
 function index(){
@@ -264,6 +208,12 @@ function watchVideo(url){
 
 }
 
+function emptyArea(){
+    let mainArea = document.getElementById("main-area")
+    var novoItem = document.createElement('div'); 
+    novoItem.innerHTML = `<p class="text-center fs-2">No videos found!</p>`
+    mainArea.prepend(novoItem)  
+}
 
 fetch("http://127.0.0.1:5000/", 
     {
@@ -279,8 +229,15 @@ fetch("http://127.0.0.1:5000/",
                 alert("something is wrong")
             }
     }).then(jsonResponse=>{
-            addVideos(jsonResponse)
+            if (jsonResponse.length > 0){
+                addVideos(jsonResponse)
+            }else{
+                emptyArea();
+            }
+
+            if (localStorage.getItem('access_token_cookie') != null){
+                addLogout();
+            }
             console.log(jsonResponse)
             
     }).catch((err) => console.error(err));
-        

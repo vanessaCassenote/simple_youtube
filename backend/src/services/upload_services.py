@@ -24,7 +24,7 @@ def upload_parts_s3(chunk, part_number):
     response = s3.upload_part(file_to_upload=chunk, part_number=part_number)
     ETAGS.append(response)
 
-def complete_multi_part_s3():    
+def complete_multi_part_s3():   
     public_url = s3.complete_multipart_upload(ETAGS)
     return public_url
 

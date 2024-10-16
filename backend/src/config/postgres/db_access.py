@@ -4,8 +4,6 @@ from src.models.video_model import Video
 from dotenv import load_dotenv
 import os
 
-# pip install Flask-SQLAlchemy
-
 load_dotenv(dotenv_path=".env")
 
 class Postgres:

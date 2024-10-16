@@ -12,7 +12,6 @@ class Video(Base):
     url = Column(String)
     owner_id = Column(Integer)
 
-    
     def get_json(self):
         return {
             "id":self.id,

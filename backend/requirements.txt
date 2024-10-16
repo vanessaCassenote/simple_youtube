@@ -4,6 +4,7 @@ boto3
 sqlalchemy
 
 requests
+Flask-JWT-Extended
 Authlib
 Flask-OAuthlib
 Werkzeug==2.2.2

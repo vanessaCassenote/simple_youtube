@@ -17,7 +17,8 @@ class Authentication:
 
         self.flow = Flow.from_client_secrets_file(
             client_secrets_file=client_secrets_file,
-            scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email", "openid"],
+            scopes=["https://www.googleapis.com/auth/userinfo.profile", 
+                    "https://www.googleapis.com/auth/userinfo.email", "openid"],
             redirect_uri="http://127.0.0.1:5000/callback"
         )
         
@@ -29,9 +30,7 @@ class Authentication:
         self.flow.fetch_token(authorization_response=request)
         
         credentials = self.flow.credentials
-        
-        #request_session = requests.session()
-        #cached_session = cachecontrol.CacheControl(request_session)
+
         token_request = google.auth.transport.requests.Request(session=cached_session)
 
         id_info = id_token.verify_oauth2_token(

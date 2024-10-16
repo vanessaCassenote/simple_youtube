@@ -1,10 +1,10 @@
-from flask import Flask, redirect, request, url_for, render_template, session, jsonify
-import flask
+from flask import Flask, redirect, request, url_for, session, jsonify
 from functools import wraps
-import requests
-import os
 import base64
-from app import app, oauth, google
+from app import app, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+from google.oauth2 import id_token
+from google.auth.transport import requests
+from flask_jwt_extended import create_access_token, JWTManager, jwt_required, unset_jwt_cookies
 from src.services.upload_services import open_multi_upload_s3, upload_parts_s3, complete_multi_part_s3, save_to_postgres
 from src.services.watch_services import get_all_videos
 
@@ -23,54 +23,43 @@ def login_required(f):
 def index():
     return jsonify(get_all_videos())
 
-@app.route("/login")
-def login():      
+
+@app.route("/login", methods=["POST"])
+def login(): 
+    
+    token = request.json["token"]
+    
     try:
-        redirect_uri = url_for("callback", _external=True)
-        response = google.authorize(callback=redirect_uri)
-        print("--------1------------",response.location)
-        print("--------2------------",response.headers)
-        print("--------3------------",response.get_json())
-        
-    except Exception as e:
-        app.logger.error(f"Erro during login:{str(e)}")
-        return jsonify({"msg":"Error occurred during login", "status":500})
-    
-    return jsonify({"response":response.location})
+        # Specify the CLIENT_ID of the app that accesses the backend:
+        user_info = id_token.verify_oauth2_token(token, requests.Request(), GOOGLE_CLIENT_ID)
 
-@app.route("/callback")
-def callback():
-    print("olaaaa2024")
-    response = google.authorized_response()
-    if response is None or response.get('access_token') is None:
-        return 'Login failed.'
-    session['google_token'] = (response['access_token'], '')
-    return jsonify({"session":session['google_token']})
+        # Or, if multiple clients access the backend server:
+        # idinfo = id_token.verify_oauth2_token(token, requests.Request())
+        # if idinfo['aud'] not in [CLIENT_ID_1, CLIENT_ID_2, CLIENT_ID_3]:
+        #     raise ValueError('Could not verify audience.')
 
-# @app.route("/upload_parts", methods=['POST'])
-# def upload_parts():
-#     data = request.json
-#     imgdata = base64.b64decode(data["chunk"])
-#     print("-------------\n",data["chunk_index"] )
-#     if (data["chunk_index"] == 1):
-#         open_multi_upload_s3(filename=data["filename"])
-    
-#     upload_parts_s3(chunk=imgdata, part_number=data["chunk_index"])
-    
-#     if (data["chunk_index"] == data["total_chunks"]):
-        
-#         public_url = complete_multi_part_s3()
-#         save_to_postgres(filename=data["filename"], url=public_url)
-    
-#     return jsonify({"status":200})
+        # If the request specified a Google Workspace domain
+        # if idinfo['hd'] != DOMAIN_NAME:
+        #     raise ValueError('Wrong domain name.')
+
+        # ID token is valid. Get the user's Google Account ID from the decoded token.
+        userid = user_info['sub']
+    except ValueError:
+        # Invalid token
+        pass
+
+    access_token = create_access_token(identity=user_info['email'])
+    return jsonify(access_token=access_token)
 
 @app.route("/upload_start", methods=['POST'])
+@jwt_required()
 def upload_start():
     data = request.json
     open_multi_upload_s3(filename=data["filename"])
     return jsonify({"Upload Started":200})
 
 @app.route("/upload_parts", methods=['POST'])
+@jwt_required()
 def upload_parts():
     data = request.json
     imgdata = base64.b64decode(data["chunk"])
@@ -78,13 +67,18 @@ def upload_parts():
     return jsonify({f"Upload {data["chunk_index"]}/{data["total_chunks"]}":200})
 
 @app.route("/upload_end", methods=['POST'])
+@jwt_required()
 def upload_end():
     data = request.json     
     public_url = complete_multi_part_s3()
-    save_to_postgres(title=data["title"], filename=data["filename"], screenshot=data["screenshot"], url=public_url)
+    save_to_postgres(title=data["title"], 
+                     filename=data["filename"], 
+                     screenshot=data["screenshot"], 
+                     url=public_url)
     return jsonify({"Upload Ended":200})
 
 @app.route("/logout", methods=["GET"])
 def logout():
-    session.pop('google_token', None)
-    return redirect(url_for('index'))
+    resp = jsonify({'logout': True})
+    unset_jwt_cookies(resp)
+    return resp, 200
